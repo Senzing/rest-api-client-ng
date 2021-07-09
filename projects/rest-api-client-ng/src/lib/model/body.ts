@@ -11,4 +11,4 @@
  */
 import { SzDataSourceDescriptor } from './szDataSourceDescriptor';
 
-export type Body = Array<SzDataSourceDescriptor> | SzDataSourceDescriptor;
+export type SzDataSourceDescriptorBody = Array<SzDataSourceDescriptor> | SzDataSourceDescriptor;

@@ -4,8 +4,94 @@ export interface ConfigurationParameters {
     password?: string;
     accessToken?: string | (() => string);
     basePath?: string;
+    webSocketBasePath?: string;
+    supportsWebSockets?: boolean;
     withCredentials?: boolean;
+    useSSL?: boolean;
     additionalHeaders?: {[key: string]: string};
+}
+
+export interface WebSocketConnectionParameters {
+    connected?: boolean;
+    clientId?: string;
+    hostname?: string;
+    port?: number;
+    secure?: boolean;
+    connectionTest?: boolean;
+    reconnectOnClose?: boolean;
+    reconnectConsecutiveAttemptLimit?: number;
+    path?: string;
+    method?: string;
+}
+
+export class WebSocketConnectionConfiguration {
+    connected: boolean = false;
+    clientId?: string;
+    hostname: string;
+    port?: number;
+    secure?: boolean;
+    connectionTest: boolean = false;
+    reconnectOnClose: boolean = false;
+    reconnectConsecutiveAttemptLimit: number =  0;
+    path: string;
+    method?: string;
+
+    constructor(configurationParameters: WebSocketConnectionParameters = {}) {
+        if(configurationParameters) {
+            this.connectionParameters = configurationParameters;
+        }
+    }
+
+    /** returns state of class as JSON object conforming to WebSocketConnectionParameters shape */
+    public get connectionParameters(): WebSocketConnectionParameters {
+        let retVal:WebSocketConnectionParameters  = {
+            connected: this.connected,
+            hostname: this.hostname,
+            port: this.port,
+            secure: this.secure,
+            connectionTest: this.connectionTest,
+            reconnectOnClose: this.reconnectOnClose,
+            reconnectConsecutiveAttemptLimit: this.reconnectConsecutiveAttemptLimit,
+            path: this.path,
+            method: this.method
+        }
+        if(this.clientId) {
+            retVal.clientId = this.clientId;
+        }
+        return retVal;
+    }
+    /** sets state of class from JSON object conforming to WebSocketConnectionParameters shape */
+    public set connectionParameters(connProps: WebSocketConnectionParameters) {
+        if(connProps) {
+            this.connected = connProps.connected !== undefined ? connProps.connected : this.connected;
+            this.clientId = connProps.clientId !== undefined ? connProps.clientId : this.clientId;
+            this.hostname = connProps.hostname !== undefined ? connProps.hostname : this.hostname;
+            this.port = connProps.port !== undefined ? connProps.port : this.port;
+            this.secure = connProps.secure !== undefined ? connProps.secure : this.secure;
+            this.connectionTest = connProps.connectionTest !== undefined ? connProps.connectionTest : this.connectionTest;
+            this.reconnectOnClose = connProps.reconnectOnClose !== undefined ? connProps.reconnectOnClose : this.reconnectOnClose;
+            this.reconnectConsecutiveAttemptLimit = connProps.reconnectConsecutiveAttemptLimit !== undefined ? connProps.reconnectConsecutiveAttemptLimit : this.reconnectConsecutiveAttemptLimit;
+            this.path = connProps.path !== undefined ? connProps.path : this.path;
+            this.method = connProps.method !== undefined ? connProps.method : this.method;
+        }
+    }
+
+    static getSocketUriFromConnectionObject(connProps: WebSocketConnectionParameters, path?: string, method?: "POST" | "PUT" | "GET"): string {
+        let retVal = "ws://localhost:8955";
+        if(connProps) {
+          retVal  = (connProps.secure) ? "wss://" : "ws://";
+          retVal += (connProps.hostname) ? connProps.hostname : 'localhost';
+          retVal += (connProps.port) ? ':'+connProps.port : '';
+          if(path) {
+            retVal += ''+ path;
+          } else if(connProps.path) {
+            retVal += (connProps.path) ? ''+connProps.path : '';
+          }
+        }
+    
+        return retVal;
+    }
+
 }
 
 export class Configuration {
@@ -14,20 +100,26 @@ export class Configuration {
     password?: string;
     accessToken?: string | (() => string);
     basePath?: string;
+    //webSocketBasePath?: string;
+    //supportsWebSockets?: boolean = false;
     withCredentials?: boolean;
+    useSSL?: boolean = false;
     /** 
      * additional headers to pass to api requests 
      * @internal
     */
     private _additionalHeaders: {key: string, value: string}[] | undefined;
 
+
     constructor(configurationParameters: ConfigurationParameters = {}) {
-        this.apiKeys = configurationParameters.apiKeys;
-        this.username = configurationParameters.username;
-        this.password = configurationParameters.password;
-        this.accessToken = configurationParameters.accessToken;
-        this.basePath = configurationParameters.basePath;
-        this.withCredentials = configurationParameters.withCredentials;
+        this.apiKeys            = configurationParameters.apiKeys;
+        this.username           = configurationParameters.username;
+        this.password           = configurationParameters.password;
+        this.accessToken        = configurationParameters.accessToken;
+        this.basePath           = configurationParameters.basePath;
+        this.withCredentials    = configurationParameters.withCredentials;
+        this.useSSL             = configurationParameters.useSSL;
+        //this.supportsWebSockets = (configurationParameters.supportsWebSockets !== undefined) ? configurationParameters.supportsWebSockets : this.supportsWebSockets;
         // safety check because extra setter logic to unset value present
         if(configurationParameters.additionalHeaders) { 
             this.additionalHeaders = configurationParameters.additionalHeaders;

@@ -1,5 +1,5 @@
 import { NgModule, ModuleWithProviders, SkipSelf, Optional } from '@angular/core';
-import { Configuration } from './configuration';
+import { Configuration, WebSocketConnectionConfiguration } from './configuration';
 import { HttpClient } from '@angular/common/http';
 
 import { AdminService } from './api/admin.service';
@@ -7,6 +7,8 @@ import { BulkDataService } from './api/bulkData.service';
 import { ConfigService } from './api/config.service';
 import { EntityDataService } from './api/entityData.service';
 import { EntityGraphService } from './api/entityGraph.service';
+import { StreamLoadingService } from './api/streamLoading.service';
+import { SzPocWebSocketService } from './api/websocket.service';
 
 @NgModule({
   imports:      [],
@@ -17,13 +19,28 @@ import { EntityGraphService } from './api/entityGraph.service';
     BulkDataService,
     ConfigService,
     EntityDataService,
-    EntityGraphService ]
+    EntityGraphService,
+    StreamLoadingService,
+    SzPocWebSocketService
+  ]
 })
 export class ApiModule {
-    public static forRoot(configurationFactory: () => Configuration): ModuleWithProviders<ApiModule> {
+    public static forRoot(configurationFactory: () => Configuration, @Optional() streamConfigurationFactory? : () => WebSocketConnectionConfiguration): ModuleWithProviders<ApiModule> {
+        let _providers: Array<any> = [
+            { provide: Configuration, useFactory: configurationFactory }
+        ];
+        if(streamConfigurationFactory) {
+            _providers.push( 
+                { 
+                    provide: WebSocketConnectionConfiguration, 
+                    useFactory: streamConfigurationFactory
+                }
+            );
+        }
+        
         return {
             ngModule: ApiModule,
-            providers: [ { provide: Configuration, useFactory: configurationFactory } ]
+            providers: _providers
         };
     }
 

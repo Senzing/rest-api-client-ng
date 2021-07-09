@@ -8,4 +8,9 @@ export * from './entityData.service';
 import { EntityDataService } from './entityData.service';
 export * from './entityGraph.service';
 import { EntityGraphService } from './entityGraph.service';
-export const APIS = [AdminService, BulkDataService, ConfigService, EntityDataService, EntityGraphService];
+export * from './streamLoading.service'
+import { StreamLoadingService } from './streamLoading.service';
+export * from './websocket.service'
+import { SzPocWebSocketService } from './websocket.service';
+
+export const APIS = [AdminService, BulkDataService, ConfigService, EntityDataService, EntityGraphService, StreamLoadingService, SzPocWebSocketService];

@@ -17,10 +17,10 @@ import { CustomHttpUrlEncodingCodec }                        from '../encoder';
 
 import { Observable }                                        from 'rxjs';
 
-import { Body } from '../model/body';
-import { Body1 } from '../model/body1';
+import { DatasourcesBody } from '../model/datasourcesBody';
+//import { Body1 } from '../model/body1';
 import { Body2 } from '../model/body2';
-import { Body3 } from '../model/body3';
+//import { Body3 } from '../model/body3';
 import { SzAttributeClass } from '../model/szAttributeClass';
 import { SzAttributeTypeResponse } from '../model/szAttributeTypeResponse';
 import { SzAttributeTypesResponse } from '../model/szAttributeTypesResponse';
@@ -119,10 +119,10 @@ See the various request body examples.
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      */
-    public addDataSources(body?: Body | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'body', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<SzDataSourcesResponse>;
-    public addDataSources(body?: Body | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'response', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<HttpResponse<SzDataSourcesResponse>>;
-    public addDataSources(body?: Body | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'events', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<HttpEvent<SzDataSourcesResponse>>;
-    public addDataSources(body?: Body | string, dataSource?: string | Array<string>, withRaw?: boolean, observe: any = 'body', reportProgress: boolean = false, additionalHeaders: {[key: string]: string} = {} ): Observable<any> {
+    public addDataSources(body?: DatasourcesBody | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'body', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<SzDataSourcesResponse>;
+    public addDataSources(body?: DatasourcesBody | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'response', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<HttpResponse<SzDataSourcesResponse>>;
+    public addDataSources(body?: DatasourcesBody | string, dataSource?: string | Array<string>, withRaw?: boolean, observe?: 'events', reportProgress?: boolean, additionalHeaders?: {[key: string]: string}): Observable<HttpEvent<SzDataSourcesResponse>>;
+    public addDataSources(body?: DatasourcesBody | string, dataSource?: string | Array<string>, withRaw?: boolean, observe: any = 'body', reportProgress: boolean = false, additionalHeaders: {[key: string]: string} = {} ): Observable<any> {
         let queryParameters = new HttpParams({encoder: new CustomHttpUrlEncodingCodec()});
         if (dataSource && (dataSource as Array<string>).forEach) {
           (dataSource as Array<string>).forEach((element) => {
