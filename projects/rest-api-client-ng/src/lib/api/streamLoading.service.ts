@@ -15,7 +15,7 @@ import { HttpClient, HttpHeaders, HttpParams,
          HttpResponse, HttpEvent }                           from '@angular/common/http';
 import { CustomHttpUrlEncodingCodec }                        from '../encoder';
 
-import { Observable }                                        from 'rxjs';
+import { BehaviorSubject, Observable, Subject }                                        from 'rxjs';
 import { webSocket, WebSocketSubject }                       from 'rxjs/webSocket';
 
 
@@ -28,9 +28,19 @@ import { SzQueueInfoResponse } from '../model/szQueueInfoResponse';
 import { BASE_PATH, WEBSOCKET_BASE_PATH, COLLECTION_FORMATS }   from '../variables';
 import { Configuration, WebSocketConnectionConfiguration, WebSocketConnectionParameters }      from '../configuration';
 import { SzPocWebSocketService }                                   from './websocket.service';
+import { map } from 'rxjs/operators';
 
 @Injectable()
 export class StreamLoadingService {
+
+    /** subscribe to this observable channel for error notification */
+    //public onError = this.webSocketService.onError;
+    /** observable published to when the state of connection changes. Raw Observable<CloseEvent | Event> from rxJS websocket stream */
+    //public onStatusChange: Observable<CloseEvent | Event> = this.webSocketService.onStatusChange;
+    /** when a the socket has been opened, reopened, or closed. returns true for connected, false for disconnected */
+    //public onConnectionStateChange: Observable<boolean> = this.webSocketService.onConnectionStateChange;
+    /** when the connected socket receives an upstream message */
+    //public onMessageRecieved = this.webSocketService.onMessageRecieved;
 
     protected basePath  = 'http://localhost:8250';
     protected wsPath;
@@ -195,10 +205,10 @@ export class StreamLoadingService {
      * @param observe set whether or not to return the data Observable as the body, response or events. defaults to returning the body.
      * @param reportProgress flag to report request and response progress.
      */
-    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, loadId?: string, observe?: 'body', reportProgress?: boolean): Observable<SzBaseResponse>;
-    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, loadId?: string, observe?: 'response', reportProgress?: boolean): Observable<HttpResponse<SzBaseResponse>>;
-    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, loadId?: string, observe?: 'events', reportProgress?: boolean): Observable<HttpEvent<SzBaseResponse>>;
-    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, loadId?: string, observe: any = 'body', reportProgress: boolean = false ): Observable<any> {
+    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, eofSendTimeout?: number, progressPeriod?: number, loadId?: string, observe?: 'body', reportProgress?: boolean): Observable<SzBaseResponse>;
+    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, eofSendTimeout?: number, progressPeriod?: number, loadId?: string, observe?: 'response', reportProgress?: boolean): Observable<HttpResponse<SzBaseResponse>>;
+    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, eofSendTimeout?: number, progressPeriod?: number, loadId?: string, observe?: 'events', reportProgress?: boolean): Observable<HttpEvent<SzBaseResponse>>;
+    public postRecordsToLoadQueue(body: { [key: string]: any; }[], dataSource?: string, mapDataSources?: string, mapDataSource?: Array<string>, entityType?: string, mapEntityTypes?: string, mapEntityType?: Array<string>, eofSendTimeout?: number, progressPeriod?: number, loadId?: string, observe: any = 'body', reportProgress: boolean = false ): Observable<any> {
         /*if(!this.wsPath) {
             throw new Error('WebsocketBasePath is not defined. postRecordToLoadQueue is a WebSocket interface.');
         }*/
@@ -252,7 +262,10 @@ export class StreamLoadingService {
             qsChar = '&';
         }
         streamSocketEndpoint            += `${qsChar}eofSendTimeout=40&progressPeriod=60`;
-        this.webSocketService.reconnect(streamSocketEndpoint)
+        console.warn('StreamLoadingService.postRecordsToLoadQueue.webSocketService.reconnect: ', streamSocketEndpoint);
+        this.webSocketService.rconnect(streamSocketEndpoint);
+        this.webSocketService.reconnect(streamSocketEndpoint);
+
         return this.webSocketService.sendMessages( body );
         /*
         return this.httpClient.request<SzBaseResponse>('post',`${this.basePath}/load-queue/data-sources/${encodeURIComponent(String(dataSourceCode))}/records`,

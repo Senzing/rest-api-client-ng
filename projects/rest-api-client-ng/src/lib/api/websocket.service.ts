@@ -16,9 +16,9 @@ interface offlineMessage {
 export class SzPocWebSocketService {
   public unsubscribe$ = new Subject<void>();
   /** when an error occurs it is sent to this subject */
-  private _onErrorSubject = new Subject<any>();
+  private _onError = new Subject<any>();
   /** subscribe to this observable channel for error notification */
-  public onError = this._onErrorSubject.asObservable();
+  public onError = this._onError.asObservable();
   /** subject used to listen to connection status */
   private _onStatusChange: Subject<CloseEvent | Event> = new BehaviorSubject<CloseEvent | Event>(new CloseEvent('close'));
   /** observable published to when the state of connection changes. Raw Observable<CloseEvent | Event> from rxJS websocket stream */
@@ -26,7 +26,7 @@ export class SzPocWebSocketService {
   /** when a the socket has been opened, reopened, or closed. returns true for connected, false for disconnected */
   public onConnectionStateChange: Observable<boolean> = this.onStatusChange.pipe(
     map( SzPocWebSocketService.statusChangeEvtToConnectionBool )
-  )
+  );
   /** when the connected socket receives an upstream message */
   private _onMessageRecieved: Subject<any> = new Subject<any>();
   public onMessageRecieved = this._onMessageRecieved.asObservable();
@@ -148,14 +148,14 @@ export class SzPocWebSocketService {
     let retSub = new Subject<boolean>();
     let retObs = retSub.asObservable();
     if((this.connectionProperties && !this._connected) || this.ws$ === undefined) {
-      //console.log('queueing message..', this._offlineMessageQueue.length, this._connected, this.ws$.closed);
+      console.log('queueing message..', this._offlineMessageQueue.length, this._connected);
       this._offlineMessageQueue = this._offlineMessageQueue.concat(
         (messages as any).map((message: any) => {
           return {data: JSON.stringify(message)}
         })
       );
     } else if(this.ws$) {
-      //console.log('sending message..', message, this._connected);
+      console.log('sending message..', messages, this._connected);
       this.ws$.pipe(
         take(1)
       ).subscribe((res) => {
@@ -202,7 +202,12 @@ export class SzPocWebSocketService {
     }
   }*/
 
-  constructors() {  
+  constructor() {  
+    this.onError.subscribe((error: Error) => {
+      console.warn('SzPocWebSocketService.onError: ', error);
+      //this._onError.next(error);
+    });
+
     /** track the connection status of the socket */
     this.onConnectionStateChange.subscribe((connected) => {
       if(!this._connected && connected) {
@@ -211,16 +216,16 @@ export class SzPocWebSocketService {
         this._reconnectionAttemptsIncrement = 0;
       }
       this._connected = connected;
-      console.warn('WebSocketService.onConnectionStateChange: ', this._connected);
+      console.warn('SzPocWebSocketService.onConnectionStateChange: ', this._connected);
     });
     
     /** when "reconnectOnClose" == true, reconnect socket */
-    /*
     this.onStatusChange.pipe(
-      map( WebSocketService.statusChangeEvtToConnectionBool ),
-      filter( (_status) => { return this.connectionProperties.reconnectOnClose && this._reconnectionAttemptsIncrement <= this.connectionProperties.reconnectConsecutiveAttemptLimit && !_status; })
-    ).subscribe( this._onDisconnectRetry.bind(this) );
-    */
+      map( SzPocWebSocketService.statusChangeEvtToConnectionBool ),
+    ).subscribe( (status) => {
+      console.warn('SzPocWebSocketService.onStatusChange: ', status, this._offlineMessageQueue)
+    } );
+    
     this.onStatusChange.pipe(
       map( SzPocWebSocketService.statusChangeEvtToConnectionBool ),
       filter( (_status) => { 
@@ -231,6 +236,9 @@ export class SzPocWebSocketService {
     ).subscribe( this._onDisconnectRetry.bind(this) );
     /** if messages were sent while connection offline send them on reconnection */
     this.onConnectionStateChange.pipe(
+      tap((_status ) =>{
+        console.warn('onConnectionStateChange: '+ _status, this._offlineMessageQueue);
+      }),
       filter( _status => _status === true)
     ).subscribe( this._onConnectProcessOfflineMessages.bind(this) );
   }
@@ -239,14 +247,27 @@ export class SzPocWebSocketService {
    * @internal
    */
   private _onConnectProcessOfflineMessages(){
-    console.log('WebSocketService._onConnectProcessOfflineMessages: ', this._offlineMessageQueue);
+    console.log('SzPocWebSocketService._onConnectProcessOfflineMessages: ', this._offlineMessageQueue);
 
     if(this._offlineMessageQueue && this._offlineMessageQueue.length > 0) {
       this._offlineMessageQueue = this._offlineMessageQueue.filter( (msg, _ind) => {
+        let msgStr = '';
         this.ws$.pipe(
           take(1)
         ).subscribe((msg.onSent ? msg.onSent : () => {}));
-        this.ws$.next(msg.data);
+        
+        if((msg.data as string).split) {
+          // string
+          msgStr = msg.data;
+        } else {
+          // assume json object
+          msgStr = JSON.stringify(msg.data);
+        }
+        if(msgStr && !(msgStr.lastIndexOf('\n') >= (msgStr.length > 2 ? msgStr.length - 2 : msgStr.length))) {
+          // add line ending
+          msgStr  = msgStr +'\n';
+        }
+        this.ws$.next(msgStr);
         return false;
       });
     }
@@ -270,13 +291,15 @@ export class SzPocWebSocketService {
     if(port) { this.connectionProperties.port = port; } 
 
     // connection string
-    let _wsaddr = WebSocketConnectionConfiguration.getSocketUriFromConnectionObject(this.connectionProperties);
+    let _wsaddr = WebSocketConnectionConfiguration.getSocketUriFromConnectionObject(this.connectionProperties, path, method, true);
+    // _wsaddr != include ${path}
+    console.log(`SzPocWebSocketService.open: ${_wsaddr}`, hostname, port, path, method, this.connectionProperties);
 
     // when connection is opened proxy to status$
     const openSubject = new Subject<Event>();
     openSubject.pipe(
       tap( s => { 
-        console.log('WebSocketService.open: ', s);
+        console.log('SzPocWebSocketService.open: ', s);
         this._connected = true;
       })
     ).subscribe(this._onStatusChange);
@@ -284,19 +307,19 @@ export class SzPocWebSocketService {
     const closeSubject = new Subject<CloseEvent>();
     closeSubject.pipe(
       tap( s => {
-        console.log('WebSocketService.close: ', s);
+        console.log('SzPocWebSocketService.close: ', s);
         this._connected = false;
       })
     ).subscribe(this._onStatusChange);
     const errorSubject = new Subject<CloseEvent>();
     errorSubject.pipe(
-      tap( s => console.log('WebSocketService.error: ', s) ),
-    ).subscribe(this._onErrorSubject);
+      tap( s => console.log('SzPocWebSocketService.error: ', s) ),
+    ).subscribe(this._onError);
 
     // when message is received proxy to status$
     const messageSubject = new Subject<Event>();
     messageSubject.pipe(
-      tap( s => console.log('WebSocketService.message: ', s) ),
+      tap( s => console.log('SzPocWebSocketService.message: ', s) ),
       map(_ => false)
     ).subscribe(this.message$);
     // initialize connection
@@ -346,13 +369,13 @@ export class SzPocWebSocketService {
         if(errors && !errors.message) {
           errors.message = "Websocket could not connect to Stream interface. Double check that host is valid and reachable.";
         }
-        this._onError(errors);
+        this._onError.next(errors);
         return of(errors)
       } )
     ).subscribe((msg: any) => {
       //console.log('WebsocketService Message: ', msg);
       this._onMessageRecieved.next(msg);
-    }, this._onError);
+    }, this._onErrorEmmit);
 
     // return observeable
     return this.ws$.asObservable();
@@ -377,12 +400,13 @@ export class SzPocWebSocketService {
   }
   /** reconnect to previously closed connection */
   public reconnect(path?: string, method?: "POST" | "PUT" | "GET"){
+    console.log(`SzPocWebSocketService.reconnect(${path}, ${method})`);
     if(this.ws$) {
       let onWSExists = () => {
-        //console.log('WebSocketService.reconnect: ', this.connectionProperties, this.ws$);
+        console.log('SzPocWebSocketService.reconnect: ', this.connectionProperties, this.ws$);
         this.ws$.pipe(
           catchError( (error: Error) => {
-            console.log('WebSocketService.reconnect: error: ', error, this.ws$.error.toString());
+            console.log('SzPocWebSocketService.reconnect: error: ', error, this.ws$.error.toString());
             if(error && !error.message) {
               error.message = `Could not connect to Stream interface(${WebSocketConnectionConfiguration.getSocketUriFromConnectionObject(this.connectionProperties)}) after a disconnect. Will continue to retry connection until reconnection attempt limit(${this._reconnectionAttemptsIncrement} / ${this.connectionProperties.reconnectConsecutiveAttemptLimit}) is reached.`;
             } else if(this.ws$ && this.ws$.hasError && this.ws$.error.toString) {
@@ -390,7 +414,7 @@ export class SzPocWebSocketService {
             } else {
               error.message = 'Unknown error has occurred during reconnection attempt. Check Developer console for more info.'
             }
-            this._onError(error);
+            this._onError.next(error);
             return of(error)
           } ),
           map( SzPocWebSocketService.statusChangeEvtToConnectionBool ),
@@ -406,21 +430,27 @@ export class SzPocWebSocketService {
 
       if(this.connectionProperties && path && this.connectionProperties.path !== path){
         // kill con
-        //console.log('calling ws$.complete');
+        console.log('reconnect.disconnect: ',this.connectionProperties);
         this.disconnect();
         // re-init with new path
         this.open(undefined, undefined, path, method).subscribe( onWSExists )
       } else {
+        console.log('reconnect.onWSExists',this.connectionProperties);
         onWSExists();
       }
       
     } else if(this.connectionProperties && this.connectionProperties.connectionTest) {
-      //console.log('WebSocketService.reconnect -> WebSocketService.open', this.ws$, this.connectionProperties);
+      
+      console.log('SzPocWebSocketService.reconnect -> WebSocketService.open', this.ws$, this.connectionProperties);
       this.open(undefined, undefined, path, method);
     } else {
+      console.warn('SzPocWebSocketService.reconnect -> WebSocketService._onError', this.ws$, this.connectionProperties);
       // should we try to connect something that hasnt been flagged as valid?
-      this._onErrorSubject.next('Websocket could not connect to Stream interface after a disconnect. Will continue to retry connection until reconnection attempt limit is reached.');
+      this._onError.next('Websocket could not connect to Stream interface after a disconnect. Will continue to retry connection until reconnection attempt limit is reached.');
     }
+  }
+  public rconnect(path?: string, method?: "POST" | "PUT" | "GET") {
+    console.log(`SzPocWebSocketService.rconnect(${path}, ${method})`);
   }
   /**
    * when autoreconnect set to true reconnect
@@ -432,10 +462,11 @@ export class SzPocWebSocketService {
     this.reconnect();
   }
   /** on error publish to _onErrorSubject */
-  private _onError(err: any) {
+  private _onErrorEmmit(err: any) {
     console.warn('WebSocketService._onError: ', err);
-    this._onErrorSubject.next( err );
+    this._onError.next( err );
   }
+
   /** test connection properties */
   public testConnection(connectionProps?: WebSocketConnectionParameters): Observable<boolean> {
     const retSub = new Subject<boolean>();
@@ -448,7 +479,7 @@ export class SzPocWebSocketService {
       const openSubject = new Subject<Event>();
       openSubject.pipe(
         tap( s => { 
-          console.log('WebSocketService.open: ', s);
+          console.log('SzPocWebSocketService.open: ', s);
           this._connected = true;
           if(this.ws$ && this.close){
             this.close();
@@ -465,7 +496,7 @@ export class SzPocWebSocketService {
       const closeSubject = new Subject<CloseEvent>();
       closeSubject.pipe(
         tap( s => {
-          console.log('WebSocketService.close: ', s);
+          console.log('SzPocWebSocketService.close: ', s);
           
           // conn opened then closed successfully
           retSub.next(this._connected);
@@ -502,7 +533,7 @@ export class SzPocWebSocketService {
         take(1),
         catchError( (errors: any) => {
           console.warn('WS error: ', errors);
-          this._onError(errors);
+          this._onError.next(errors);
           this._connected = false;
           retSub.next(false);
           retSub.closed = true;

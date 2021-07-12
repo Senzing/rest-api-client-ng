@@ -76,17 +76,28 @@ export class WebSocketConnectionConfiguration {
         }
     }
 
-    static getSocketUriFromConnectionObject(connProps: WebSocketConnectionParameters, path?: string, method?: "POST" | "PUT" | "GET"): string {
+    static getSocketUriFromConnectionObject(connProps: WebSocketConnectionParameters, path?: string, method?: "POST" | "PUT" | "GET", test?: boolean): string {
+        let debugStr    = 'getSocketUriFromConnectionObject: ';
         let retVal = "ws://localhost:8955";
+        debugStr += 'retVal='+retVal;
         if(connProps) {
+          debugStr += '&hasConnProps';
           retVal  = (connProps.secure) ? "wss://" : "ws://";
           retVal += (connProps.hostname) ? connProps.hostname : 'localhost';
           retVal += (connProps.port) ? ':'+connProps.port : '';
           if(path) {
+            debugStr += '&hasPath='+ path;
+
             retVal += ''+ path;
           } else if(connProps.path) {
+            debugStr += '&hasConnPropsPath='+ connProps.path;
             retVal += (connProps.path) ? ''+connProps.path : '';
+          } else {
+            debugStr += '&noPath';
           }
+        }
+        if(test) {
+            console.warn(debugStr);
         }
     
         return retVal;
